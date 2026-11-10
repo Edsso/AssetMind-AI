@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: assetmind
+      POSTGRES_PASSWORD: assetmind
+      POSTGRES_DB: assetmind
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assetmind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      PORT: "8000"
+      ASSETMIND_ENV: development
+      ASSETMIND_DATABASE_URL: postgresql+psycopg://assetmind:assetmind@db:5432/assetmind
+      ASSETMIND_API_KEY: local-dev-key
+      ASSETMIND_PROVIDER_MODE: fixtures
+      ASSETMIND_AGENTOS_ENABLED: "true"
+      ASSETMIND_OS_SECURITY_KEY: local-dev-key
+      ASSETMIND_AGENTOS_JWT_SECRET: ${ASSETMIND_AGENTOS_JWT_SECRET:-}
+      ASSETMIND_AGENT_UI_URL: http://localhost:3000
+      ASSETMIND_LLM_PROVIDER: groq
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ASSETMIND_GROQ_MODEL: ${ASSETMIND_GROQ_MODEL:-openai/gpt-oss-120b}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_AGENT_OS_URL: http://localhost:8000
+      NEXT_PUBLIC_OS_SECURITY_KEY: ${ASSETMIND_AGENT_UI_TOKEN:-local-dev-key}
+    depends_on:
+      - api
